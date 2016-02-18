@@ -1,0 +1,36 @@
+{
+  "boss": true,     // true: Tolerate assignments where comparisons would be expected
+  "eqnull": true,   // true: Tolerate use of `== null`
+  "sub": true,      // true: Tolerate using `[]` notation when it can still be expressed in dot notation
+  "node": true, // Enable globals available when code is running inside of the NodeJS runtime environment.
+  "esnext": true, // Allow ES.next specific features such as `const` and `let`.
+  "bitwise": false, // Prohibit bitwise operators (&, |, ^, etc.).
+  "camelcase": false, // Permit only camelcase for `var` and `object indexes`.
+  "curly": false, // Require {} for every new block or scope.
+  "eqeqeq": true, // Require triple equals i.e. `===`.
+  "immed": true, // Require immediate invocations to be wrapped in parens e.g. `( function(){}() );`
+  "latedef": "nofunc", // Prohibit variable use before definition.
+  "newcap": true, // Require capitalization of all constructor functions e.g. `new F()`.
+  "noarg": true, // Prohibit use of `arguments.caller` and `arguments.callee`.
+  "quotmark": "single", // Define quotes to string values.
+  "regexp": true, // Prohibit `.` and `[^...]` in regular expressions.
+  "undef": true, // Require all non-global variables be declared before they are used.
+  "unused": false, // Warn unused variables.
+  "strict": true, // Require `use strict` pragma in every file.
+  "trailing": true, // Prohibit trailing whitespaces.
+  "smarttabs": false, // Suppresses warnings about mixed tabs and spaces
+  "globals": { // Globals variables.
+    "exports": true,
+    "module": false,
+    "describe": false,
+    "before": false,
+    "beforeEach": false,
+    "after": false,
+    "afterEach": false,
+    "it": false,
+    "should": false
+  },
+  "indent": 2, // Specify indentation spacing
+  "devel": true, // Allow development statements e.g. `console.log();`.
+  "noempty": true // Prohibit use of empty blocks.
+}
