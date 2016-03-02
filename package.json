@@ -1,7 +1,7 @@
 {
   "name": "tactic",
-  "version": "1.0.0",
-  "description": "",
+  "version": "0.0.1",
+  "description": "写个三国杀玩玩",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -10,7 +10,8 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "grunt-jscs": "^2.7.0"
+    "gulp": "^3.9.1",
+    "gulp-eslint": "^2.0.0"
   },
   "dependencies": {
     "lodash": "^4.5.0"
