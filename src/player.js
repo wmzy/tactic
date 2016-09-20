@@ -1,39 +1,34 @@
 'use strict';
 
-const util = require('util');
-const EventEmitter = require('events');
-const Room = require('./room');
+import EventEmitter from 'events';
+import Room from './room';
 
-function Player() {
-  EventEmitter.call(this);
+class Player extends EventEmitter {
+  createRoom() {
+    this.room = new Room();
+    this.room.addPlayer(this);
+    this.room.setOwner();
+  }
+
+  enterRoom(room) {
+    if (!~room.addPlayer(this)) {
+      this.room = room;
+      return true;
+    }
+  }
+
+  ready() {
+    this.status = 'ready';
+    this.emit('statusChanged', 'ready');
+  }
+
+  isOwner() {
+    return this === this.room.owner;
+  }
+
+  start() {
+    if (this.isOwner() && this.room.canStart()) this.room.start();
+  }
 }
 
-util.inherits(Player, EventEmitter);
-
-Player.prototype.createRoom = function () {
-  this.room = new Room();
-  this.room.addPlayer(this);
-  this.room.setOwner();
-};
-
-Player.prototype.enterRoom = function (room) {
-  if (!~room.addPlayer(this)) {
-    this.room = room;
-    return true;
-  }
-};
-
-Player.prototype.ready = function () {
-  this.status = 'ready';
-  this.emit('statusChanged', 'ready');
-};
-
-Player.prototype.isOwner = function () {
-  return this === this.room.owner;
-};
-
-Player.prototype.start = function () {
-  if (this.isOwner() && this.room.canStart()) this.room.start();
-};
-
-module.exports = Player;
+export default Player;

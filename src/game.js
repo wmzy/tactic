@@ -1,6 +1,6 @@
 'use strict';
 
-function Game() {
+class Game {
 }
 
-module.exports = Game;
+export default Game;
