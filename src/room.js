@@ -30,6 +30,20 @@ class Room extends EventEmitter {
     return i;
   }
 
+  removePlayer(player) {
+    _.pull(this.seats, player);
+    ++this.playerCount;
+
+    var i = -1;
+    while (this.seats[++i]) {
+    }
+    this.seats[i] = player;
+
+    _listen_to_player(player);
+
+    return i;
+  }
+
   canStart() {
     return this.playerCount > 3 && this.playerCount <= this.seats.length
       && this.seats.every(player => !player || player.status === 'ready');

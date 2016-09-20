@@ -17,6 +17,13 @@ class Player extends EventEmitter {
     }
   }
 
+  outRoom() {
+    if (this.room) {
+      this.room.removePlayer(this);
+      this.room = undefined;
+    }
+  }
+
   ready() {
     this.status = 'ready';
     this.emit('statusChanged', 'ready');
