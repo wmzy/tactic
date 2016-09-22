@@ -60,15 +60,9 @@ class Room extends EventEmitter {
 
     this.game = new Game();
 
-    // todo: 随机分配身份
+    this.game.on('end', () => console.log('game over'));
 
-    // todo: 挑选武将
-
-    // todo: 分发体力牌
-
-    // todo: 分发起始手牌
-
-    // todo: 主公准备
+    this.game.start();
   }
 }
 
