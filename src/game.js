@@ -9,7 +9,9 @@ import _ from 'lodash';
 
 import Player from './player';
 import Logger from './logger';
-import {wait} from './util';
+import {
+  waitEvent
+} from './util';
 
 class Game extends EventEmitter {
   constructor(users, options) {
@@ -24,10 +26,15 @@ class Game extends EventEmitter {
   assignRoles() {
     // 随机分配身份
     const roles = _.shuffle(this.roles);
-    _.forEach(this.players, p => {p.role = roles.pop();});
-    const li = _.findIndex(this.players, ['role', 'lord']);
+    _.forEach(this.players, p => {
+      p.role = roles.pop();
+    });
     // 主公排在第一位
+    const li = _.findIndex(this.players, ['role', 'lord']);
     this.players = _.slice(this.players, li).concat(_.slice(this.players, 0, li));
+    _.forEach(this.players, (p, i) => {
+      p.index = i;
+    });
     this.emit('roleAssigned');
   }
 
@@ -35,13 +42,58 @@ class Game extends EventEmitter {
     // 主公开始选将
     this.candidateWarriorsForLord = [];
     this.emit('lordBeginChoiceWarrior');
-    await wait(15e3);
-    this.emit('lordEndtChoiceWarrior');
+    await waitEvent(this, 'lordEndtChoiceWarrior');
     this.candidateWarriorsForLoyalAndRebel = [];
     this.candidateWarriorsForTraitor = [];
     this.emit('othersBeginChoiceWarrior');
-    await wait(15e3);
-    this.emit('othersEndChoiceWarrior');
+    await waitEvent(this, 'othersEndChoiceWarrior', this.players - 1);
+  }
+
+  drawCards(count) {
+    const cards = this.gameCards.slice(this.gameCards.length - count);
+    this.gameCards.length -= count;
+    return cards;
+  }
+
+  async assignInitGameCards() {
+    _.forEach(this.players, p => {p.gameCards = this.drawCards(4);});
+    // 手气卡逻辑
+  }
+
+  async turnToPhase(phase, player) {
+    //
+    this.emit(`game.phase.${phase}.begin`, player);
+    waitEvent(this, `game.phase.${phase}.end`)
+  }
+
+  async gameLoop() {
+    this.emit('gameStarted')
+    let index = 0;
+    while(!this.isGameOver) {
+      const p = this.players[i];
+      index = (index + 1) % this.players.length;
+      if (p.isDied) continue;
+      // todo: 反面操作
+      if (p.isReversed) {
+        p.isReversed = false;
+        continue;
+      }
+      // 回合开始阶段
+      this.emit('game.roundBegin', p);
+      // 开始阶段-begin phase;
+      await this.turnToPhase('begin', p);
+      // 判定阶段-judge phase;
+      await this.turnToPhase('judge', p);
+      // 摸牌阶段-draw phase;
+      await this.turnToPhase('draw', p);
+      // 出牌阶段-play phase;
+      await this.turnToPhase('play', p);
+      // 弃牌阶段-discard phase;
+      await this.turnToPhase('discard', p);
+      // 结束阶段-end phase;
+      await this.turnToPhase('end', p);
+      this.emit('game.roundEnd', p);
+    }
   }
 
   async start() {
@@ -49,9 +101,9 @@ class Game extends EventEmitter {
 
     await this.choiceWarriors();
 
-    // todo: 分发起始手牌
+    await this.assignInitGameCards();
 
-    // todo: 主公准备
+    this.gameLoop();
   }
 }
 
