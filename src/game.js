@@ -1,4 +1,4 @@
-// 主公-lord;忠臣-loyal;反贼-rebel;内奸-traitor;
+// 主公-monarch;忠臣-loyal;反贼-rebel;内奸-traitor;
 // 方片-diamond;红桃-herrt;黑桃-spade;梅花-club;
 // 开始阶段-begin phase;判定阶段-judge phase;摸牌阶段-draw phase;出牌阶段-play phase;弃牌阶段-discard phase;结束阶段-end phase;
 // 基本牌-basic card;装备牌-equipment card;锦囊牌-strategy card;身份牌-role card;武将牌-warrior card;体力牌-health card;
@@ -8,6 +8,7 @@ import EventEmitter from 'events';
 import _ from 'lodash';
 
 import Player from './player';
+import Warrior from './warrior';
 import Logger from './logger';
 import {
   waitEvent
@@ -18,7 +19,7 @@ class Game extends EventEmitter {
     super();
     this.players = users.map(u => new Player(u, this));
     this.options = options;
-    this.roles = ['lord', 'loyal', 'loyal', 'rebel', 'rebel', 'rebel', 'rebel', 'traitor'];
+    this.roles = ['monarch', 'loyal', 'loyal', 'rebel', 'rebel', 'rebel', 'rebel', 'traitor'];
     this.warriors = [];
     this.logger = new Logger();
   }
@@ -30,21 +31,30 @@ class Game extends EventEmitter {
       p.role = roles.pop();
     });
     // 主公排在第一位
-    const li = _.findIndex(this.players, ['role', 'lord']);
+    const li = _.findIndex(this.players, ['role', 'monarch']);
     this.players = _.slice(this.players, li).concat(_.slice(this.players, 0, li));
-    _.forEach(this.players, (p, i) => {
-      p.index = i;
-    });
+    _.forEach(this.players, (p, i) => {p.seatIndex = i;});
     this.emit('roleAssigned');
   }
 
   async choiceWarriors() {
+    let normalWarriors = _.shuffle(Warrior.getNormalWarriors());
     // 主公开始选将
-    this.candidateWarriorsForLord = [];
-    this.emit('lordBeginChoiceWarrior');
-    await waitEvent(this, 'lordEndtChoiceWarrior');
-    this.candidateWarriorsForLoyalAndRebel = [];
-    this.candidateWarriorsForTraitor = [];
+    const normalWarriorsForMonarch = normalWarriors.slice(normalWarriors.length - 3);
+    normalWarriors.length -= 3;
+    this.candidateWarriorsForMonarch = Warrior.getMonarchWarriors().concat(normalWarriorsForMonarch);
+    this.emit('monarchBeginChoiceWarrior');
+    await waitEvent(this, 'monarchEndtChoiceWarrior');
+
+    normalWarriors = _.shuffle(normalWarriors.concat(this.candidateWarriorsForMonarch))
+    this.candidateWarriorsForLoyalAndRebel = normalWarriors.slice(normalWarriors.length - 3 * 6);
+    normalWarriors.length -= 3 * 6;
+
+    this.candidateWarriorsForTraitor = normalWarriors.slice(normalWarriors.length - 6);
+    normalWarriors.length -= 6;
+
+    this.restWarriors = normalWarriors;
+
     this.emit('othersBeginChoiceWarrior');
     await waitEvent(this, 'othersEndChoiceWarrior', this.players - 1);
   }
@@ -61,7 +71,6 @@ class Game extends EventEmitter {
   }
 
   async turnToPhase(phase, player) {
-    //
     this.emit(`game.phase.${phase}.begin`, player);
     waitEvent(this, `game.phase.${phase}.end`)
   }

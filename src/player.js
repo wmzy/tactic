@@ -1,40 +1,58 @@
 'use strict';
 
 import EventEmitter from 'events';
-import Room from './room';
+import _ from 'lodash';
+
+import {
+  wait
+} from './util';
 
 class Player extends EventEmitter {
-  createRoom() {
-    this.room = new Room();
-    this.room.addPlayer(this);
-    this.room.setOwner();
+  constructor(user, game) {
+    super();
+    this.user = user;
+    this.game = game;
+    this.listenGameEvents();
   }
 
-  enterRoom(room) {
-    if (!~room.addPlayer(this)) {
-      this.room = room;
-      return true;
+  listenGameEvents() {
+    this.game.once('roleAssigned', () => {
+      this.game.once('monarchBeginChoiceWarrior', async() => {
+        if (this.role === 'monarch') {
+          await wait(15e3);
+          this.choiceWarrior();
+        }
+      });
+      this.game.once('othersBeginChoiceWarrior', async() => {
+        if (this.role !== 'monarch') {
+          await wait(15e3);
+          this.choiceWarrior();
+        }
+      });
+    });
+  }
+
+  choiceWarrior(i = 0) {
+    if (this.warrior) return;
+    if (this.role === 'monarch') {
+      this.warrior = _.pullAt(this.game.candidateWarriorsForMonarch[i]);
+      this.game.emit('monarchEndtChoiceWarrior');
+    }
+    if (this.role === 'traitor') {
+      this.warrior = _.pullAt(this.game.candidateWarriorsForTraitor[i]);
+      this.game.restWarrior = this.game.restWarrior.concat(this.candidateWarriorsForTraitor);
+      this.game.emit('othersEndChoiceWarrior');
+    }
+    if (_.includes(['loyal', 'rebel'], this.role)) {
+      const cw = this.candidateWarriorsForLoyalAndRebel.slice(this.game.candidateWarriorsForLoyalAndRebel.length - 3);
+      this.game.candidateWarriorsForLoyalAndRebel.length -= 3;
+      this.warrior = _.pullAt(cw[i]);
+      this.game.restWarrior = this.game.restWarrior.concat(this.cw);
+      this.game.emit('othersEndChoiceWarrior');
     }
   }
 
-  outRoom() {
-    if (this.room) {
-      this.room.removePlayer(this);
-      this.room = undefined;
-    }
-  }
-
-  ready() {
-    this.status = 'ready';
-    this.emit('statusChanged', 'ready');
-  }
-
-  isOwner() {
-    return this === this.room.owner;
-  }
-
-  start() {
-    if (this.isOwner() && this.room.canStart()) this.room.start();
+  set warrior(value) {
   }
 }
 
