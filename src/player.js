@@ -36,7 +36,7 @@ class Player extends EventEmitter {
     if (this.warrior) return;
     if (this.role === 'monarch') {
       this.warrior = _.pullAt(this.game.candidateWarriorsForMonarch[i]);
-      this.game.emit('monarchEndtChoiceWarrior');
+      this.game.emit('monarchEndChoiceWarrior');
     }
     if (this.role === 'traitor') {
       this.warrior = _.pullAt(this.game.candidateWarriorsForTraitor[i]);
@@ -52,7 +52,13 @@ class Player extends EventEmitter {
     }
   }
 
-  set warrior(value) {
+  get warrior() {
+    return this._warrior;
+  }
+
+  set warrior(warrior) {
+    this._warrior = warrior;
+    warrior.init(this.game, this);
   }
 }
 
