@@ -16,3 +16,11 @@ export function waitEvent(context, event, times = 1) {
     });
   });
 }
+
+export function cutArray(array, count) {
+  if (count > array.length) count = array.length;
+  const start = array.length - count;
+  const r = array.slice(start);
+  array.length = start;
+  return r;
+}

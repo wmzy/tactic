@@ -11,6 +11,7 @@ import Player from './player';
 import Warrior from './warrior';
 import Logger from './logger';
 import {
+  cutArray,
   waitEvent
 } from './util';
 
@@ -40,18 +41,15 @@ class Game extends EventEmitter {
   async choiceWarriors() {
     let normalWarriors = _.shuffle(Warrior.getNormalWarriors());
     // 主公开始选将
-    const normalWarriorsForMonarch = normalWarriors.slice(normalWarriors.length - 3);
-    normalWarriors.length -= 3;
+    const normalWarriorsForMonarch = cutArray(normalWarriors, 3);
     this.candidateWarriorsForMonarch = Warrior.getMonarchWarriors().concat(normalWarriorsForMonarch);
     this.emit('monarchBeginChoiceWarrior');
-    await waitEvent(this, 'monarchEndtChoiceWarrior');
+    await waitEvent(this, 'monarchEndChoiceWarrior');
 
-    normalWarriors = _.shuffle(normalWarriors.concat(this.candidateWarriorsForMonarch))
-    this.candidateWarriorsForLoyalAndRebel = normalWarriors.slice(normalWarriors.length - 3 * 6);
-    normalWarriors.length -= 3 * 6;
+    normalWarriors = _.shuffle(normalWarriors.concat(this.candidateWarriorsForMonarch));
+    this.candidateWarriorsForLoyalAndRebel = cutArray(normalWarriors, 3 * 6);
 
-    this.candidateWarriorsForTraitor = normalWarriors.slice(normalWarriors.length - 6);
-    normalWarriors.length -= 6;
+    this.candidateWarriorsForTraitor = cutArray(normalWarriors, 6);
 
     this.restWarriors = normalWarriors;
 
@@ -59,10 +57,13 @@ class Game extends EventEmitter {
     await waitEvent(this, 'othersEndChoiceWarrior', this.players - 1);
   }
 
+  resetGameCards() {
+    // todo: 洗牌
+  }
+
   drawCards(count) {
-    const cards = this.gameCards.slice(this.gameCards.length - count);
-    this.gameCards.length -= count;
-    return cards;
+    if (count > this.gameCards.length) this.resetGameCards();
+    return cutArray(this.gameCards, count);
   }
 
   async assignInitGameCards() {
