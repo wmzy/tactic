@@ -1,15 +1,11 @@
-// 主公-monarch;忠臣-loyal;反贼-rebel;内奸-traitor;
-// 方片-diamond;红桃-herrt;黑桃-spade;梅花-club;
-// 开始阶段-begin phase;判定阶段-judge phase;摸牌阶段-draw phase;出牌阶段-play phase;弃牌阶段-discard phase;结束阶段-end phase;
-// 基本牌-basic card;装备牌-equipment card;锦囊牌-strategy card;身份牌-role card;武将牌-warrior card;体力牌-health card;
-// 武器-weapon;防具-armor;马-horse;
-
 import EventEmitter from 'events';
+import Promise from 'bluebird';
 import _ from 'lodash';
 
 import Player from './player';
 import Warrior from './warrior';
-import Logger from './logger';
+import Request from './request';
+import {generateAbility} from './ability/abiliity';
 import {
   cutArray,
   waitEvent
@@ -22,9 +18,29 @@ class Game extends EventEmitter {
     this.options = options;
     this.roles = ['monarch', 'loyal', 'loyal', 'rebel', 'rebel', 'rebel', 'rebel', 'traitor'];
     this.warriors = [];
-    this.logger = new Logger();
+    this.state = 'init';
+    this.requests = [];
+
+    // hooks
+    this.preRoundHooks = [];
+    this.postRoundHooks = [];
+
+    this.preJudgePhaseHooks = [];
+    this.postJudgePhaseHooks = [];
+    this.preDrawPhaseHooks = [];
+    this.postDrawPhaseHooks = [];
+    this.prePlayPhaseHooks = [];
+    this.postPlayPhaseHooks = [];
+    this.preDiscardPhaseHooks = [];
+    this.postDiscardPhaseHooks = [];
+    this.endPhaseHooks = [];
+
+    this.hourglass = null;
   }
 
+  /**
+   * 分配角色
+   */
   assignRoles() {
     // 随机分配身份
     const roles = _.shuffle(this.roles);
@@ -38,23 +54,33 @@ class Game extends EventEmitter {
     this.emit('roleAssigned');
   }
 
-  async choiceWarriors() {
-    let normalWarriors = _.shuffle(Warrior.getNormalWarriors());
+  /**
+   * 选择武将
+   * @returns {Promise.<void>}
+   */
+  async choiceWarrior() {
+    this.restWarriors = _.shuffle(Warrior.getNormalWarriors());
     // 主公开始选将
-    const normalWarriorsForMonarch = cutArray(normalWarriors, 3);
+    const normalWarriorsForMonarch = cutArray(this.restWarriors, 2);
     this.candidateWarriorsForMonarch = Warrior.getMonarchWarriors().concat(normalWarriorsForMonarch);
-    this.emit('monarchBeginChoiceWarrior');
-    await waitEvent(this, 'monarchEndChoiceWarrior');
+    const index = await this.waitResponse(
+      new Request('game.monarchChoiceWarrior')
+        .to(this.players[0], {warriors: this.candidateWarriorsForMonarch})
+    );
+    this.players[0].warrior = this.candidateWarriorsForMonarch[index];
+    _.pullAt(this.candidateWarriorsForMonarch, index);
+    this.restWarriors = _.shuffle(this.restWarriors.concat(this.candidateWarriorsForMonarch));
 
-    normalWarriors = _.shuffle(normalWarriors.concat(this.candidateWarriorsForMonarch));
-    this.candidateWarriorsForLoyalAndRebel = cutArray(normalWarriors, 3 * 6);
-
-    this.candidateWarriorsForTraitor = cutArray(normalWarriors, 6);
-
-    this.restWarriors = normalWarriors;
-
-    this.emit('othersBeginChoiceWarrior');
-    await waitEvent(this, 'othersEndChoiceWarrior', this.players - 1);
+    const req = new Request('game.choiceWarrior');
+    this.players.slice(1).forEach(player =>
+      req.to(player, {warriors: cutArray(this.restWarriors, player.role === 'traitor' ? 6 : 3)})
+    );
+    const indexes = await this.waitAllResponse(req);
+    _.forEach(req.toPlayers, (to, i) => {
+      to.player[0].warrior = to.payload.warriors[indexes[i]];
+      _.pullAt(to.payload.warriors, indexes[i]);
+      this.restWarriors = this.restWarriors.concat(to.payload.warriors);
+    });
   }
 
   resetGameCards() {
@@ -73,47 +99,103 @@ class Game extends EventEmitter {
 
   async turnToPhase(phase, player) {
     this.emit(`game.phase.${phase}.begin`, player);
-    waitEvent(this, `game.phase.${phase}.end`)
+    await waitEvent(this, `game.phase.${phase}.end`);
+  }
+
+  async applyHooks(hooks) {
+    await Promise.mapSeries(hooks, h => h(this));
+  }
+
+  async turnToRound(player) {
+    if (player.isDied) return;
+    // todo: 反面操作
+    if (player.isReversed) {
+      player.isReversed = false;
+      return;
+    }
+
+    this.roundPlayer = player;
+    // 回合开始阶段
+    this.emit('game.roundBegin', player);
+    await this.applyHooks(this.preRoundHooks);
+
+    // 开始阶段-begin phase;
+    await this.turnToPhase('begin', player);
+    // 判定阶段-judge phase;
+    await this.turnToPhase('judge', player);
+    // 摸牌阶段-draw phase;
+    await this.turnToPhase('draw', player);
+    // 出牌阶段-play phase;
+    await this.turnToPhase('play', player);
+    // 弃牌阶段-discard phase;
+    await this.turnToPhase('discard', player);
+    // 结束阶段-end phase;
+    await this.turnToPhase('end', player);
+
+    this.emit('game.roundEnd', player);
+    await this.applyHooks(this.postRoundHooks);
+  }
+
+  get isGameOver() {
+    return this.state === 'over';
   }
 
   async gameLoop() {
-    this.emit('gameStarted')
+    this.emit('gameStarted');
     let index = 0;
     while(!this.isGameOver) {
-      const p = this.players[i];
+      await this.turnToRound(this.players[i]);
       index = (index + 1) % this.players.length;
-      if (p.isDied) continue;
-      // todo: 反面操作
-      if (p.isReversed) {
-        p.isReversed = false;
-        continue;
-      }
-      // 回合开始阶段
-      this.emit('game.roundBegin', p);
-      // 开始阶段-begin phase;
-      await this.turnToPhase('begin', p);
-      // 判定阶段-judge phase;
-      await this.turnToPhase('judge', p);
-      // 摸牌阶段-draw phase;
-      await this.turnToPhase('draw', p);
-      // 出牌阶段-play phase;
-      await this.turnToPhase('play', p);
-      // 弃牌阶段-discard phase;
-      await this.turnToPhase('discard', p);
-      // 结束阶段-end phase;
-      await this.turnToPhase('end', p);
-      this.emit('game.roundEnd', p);
     }
   }
 
   async start() {
     this.assignRoles();
 
-    await this.choiceWarriors();
+    await this.choiceWarrior();
 
     await this.assignInitGameCards();
 
-    this.gameLoop();
+    await this.gameLoop();
+  }
+
+  async judge(j) {
+    this.applyHooks(this.preJudgeHooks);
+    await j.apply();
+    this.applyHooks(this.postJudgeHooks);
+  }
+
+  // 使用技能
+  async useAbility(name, params) {
+    const ability = generateAbility(name, this, params);
+    await ability.use();
+  }
+
+  async response(requestId, payload) {
+    // todo: 判断是否可响应
+    if (true) {
+      this.emit('response:' + requestId, payload);
+    }
+  }
+
+  // 等待玩家响应
+  async waitResponse(request) {
+    this.requests.push(request);
+    // notify request.toPlayers
+    this.emit('request', request);
+    return new Promise(resolve => {
+      this.once('response:' + request.id, res => {
+        this.hourglass.clear();
+        resolve(res);
+      });
+      this.hourglass.timeout(() => {
+        this.emit('response:' + request.id, null);
+      });
+    })
+  }
+
+  async waitAllResponse(request) {
+    // todo:
   }
 }
 

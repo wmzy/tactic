@@ -19,6 +19,8 @@
     "gulp-sourcemaps": "^1.6.0"
   },
   "dependencies": {
+    "bluebird": "^3.4.7",
+    "glob": "^7.1.2",
     "lodash": "^4.15.0"
   }
 }

@@ -1,3 +1,6 @@
+import glob from 'glob';
+import path from 'path';
+
 export function wait(time) {
   return new Promise(resolve => {
     setTimeout(resolve, time);
@@ -23,4 +26,11 @@ export function cutArray(array, count) {
   const r = array.slice(start);
   array.length = start;
   return r;
+}
+
+export function requireGlob(pattern, cwd) {
+  glob.sync(pattern, {cwd})
+  .map(filename => {
+    return require(path.resolve(filename))
+  })
 }
