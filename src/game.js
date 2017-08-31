@@ -19,6 +19,7 @@ class Game extends EventEmitter {
     this.roles = ['monarch', 'loyal', 'loyal', 'rebel', 'rebel', 'rebel', 'rebel', 'traitor'];
     this.warriors = [];
     this.state = 'init';
+    this.phase = 'init';
     this.requests = [];
 
     // hooks
@@ -98,6 +99,7 @@ class Game extends EventEmitter {
   }
 
   async turnToPhase(phase, player) {
+    this.phase = phase;
     this.emit(`game.phase.${phase}.begin`, player);
     await waitEvent(this, `game.phase.${phase}.end`);
   }
@@ -165,15 +167,10 @@ class Game extends EventEmitter {
     this.applyHooks(this.postJudgeHooks);
   }
 
-  // 使用技能
-  async useAbility(name, params) {
-    const ability = generateAbility(name, this, params);
-    await ability.use();
-  }
-
-  async response(requestId, payload) {
-    // todo: 判断是否可响应
-    if (true) {
+  async response(payload) {
+    if (payload.requestId === _.get(_.last(this.requests), 'id')) {
+      const player = this.players[payload.playerIndex];
+      await player.useAbility(payload.ability, payload.abilityParams);
       this.emit('response:' + requestId, payload);
     }
   }
@@ -195,6 +192,14 @@ class Game extends EventEmitter {
   }
 
   async waitAllResponse(request) {
+    // todo:
+  }
+
+  async waitOthersResponse(request) {
+    // todo:
+  }
+
+  async waitAnyResponse(request) {
     // todo:
   }
 }

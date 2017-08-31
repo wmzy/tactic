@@ -1,4 +1,4 @@
-import Ability from '../abiliity';
+import Ability from '../ability';
 
 class ShaAbility extends Ability {
   static name = '杀';

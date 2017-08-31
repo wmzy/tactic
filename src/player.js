@@ -14,6 +14,11 @@ class Player extends EventEmitter {
     this.listenGameEvents();
     this.cards = [];
     this.judgeStack = [];
+    this.abilities = {};
+  }
+
+  useAbility(name, params) {
+    return this.abilities[name].use(params);
   }
 
   listenGameEvents() {
