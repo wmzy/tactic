@@ -168,11 +168,14 @@ class Game extends EventEmitter {
   }
 
   async response(payload) {
-    if (payload.requestId === _.get(_.last(this.requests), 'id')) {
-      const player = this.players[payload.playerIndex];
-      await player.useAbility(payload.ability, payload.abilityParams);
-      this.emit('response:' + requestId, payload);
-    }
+    const req = _.last(this.requests);
+    if (!req) throw new Error('no request');
+    if (payload.requestId !== req.id) throw new Error('request id not match');
+    if (!req.isRequestPlayer(payload.player)) throw new Error('is not request player');
+
+    // todo: hooks
+    // await payload.player.useAbility(payload.ability, payload.abilityParams);
+    this.emit('response:' + requestId, payload);
   }
 
   // 等待玩家响应
@@ -189,18 +192,6 @@ class Game extends EventEmitter {
         this.emit('response:' + request.id, null);
       });
     })
-  }
-
-  async waitAllResponse(request) {
-    // todo:
-  }
-
-  async waitOthersResponse(request) {
-    // todo:
-  }
-
-  async waitAnyResponse(request) {
-    // todo:
   }
 }
 
