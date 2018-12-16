@@ -18,9 +18,11 @@ class Game extends EventEmitter {
     this.options = options;
     this.roles = ['monarch', 'loyal', 'loyal', 'rebel', 'rebel', 'rebel', 'rebel', 'traitor'];
     this.warriors = [];
+    this.cards = []
+    this.wasteCards = []
     this.state = 'init';
     this.phase = 'init';
-    this.requests = [];
+    this.requestStack = [];
 
     // hooks
     this.preRoundHooks = [];
@@ -35,8 +37,6 @@ class Game extends EventEmitter {
     this.preDiscardPhaseHooks = [];
     this.postDiscardPhaseHooks = [];
     this.endPhaseHooks = [];
-
-    this.hourglass = null;
   }
 
   /**
@@ -62,9 +62,10 @@ class Game extends EventEmitter {
   async choiceWarrior() {
     this.restWarriors = _.shuffle(Warrior.getNormalWarriors());
     // 主公开始选将
+    // 主公可选武将包含两个普通武将
     const normalWarriorsForMonarch = cutArray(this.restWarriors, 2);
     this.candidateWarriorsForMonarch = Warrior.getMonarchWarriors().concat(normalWarriorsForMonarch);
-    const index = await this.waitResponse(
+    const index = await this.request(
       new Request('game.monarchChoiceWarrior')
         .to(this.players[0], {warriors: this.candidateWarriorsForMonarch})
     );
@@ -167,30 +168,28 @@ class Game extends EventEmitter {
     this.applyHooks(this.postJudgeHooks);
   }
 
-  async response(payload) {
-    const req = _.last(this.requests);
-    if (!req) throw new Error('no request');
-    if (payload.requestId !== req.id) throw new Error('request id not match');
-    if (!req.isRequestPlayer(payload.player)) throw new Error('is not request player');
+  topRequest() {
+    return _.last(this.requestStack);
+  }
 
+  async response(payload) {
     // todo: hooks
-    // await payload.player.useAbility(payload.ability, payload.abilityParams);
-    this.emit('response:' + requestId, payload);
+    const request = this.requestStack.pop();
+    request.resolve(payload);
   }
 
   // 等待玩家响应
-  async waitResponse(request) {
-    this.requests.push(request);
-    // notify request.toPlayers
-    this.emit('request', request);
+  async request(request) {
+    // todo: notify request.toPlayers
+    // todo: hooks
+    if (isSeriesRequest(request)) {
+      // todo:
+    } else if (isRaceRequest(request)) {
+      // todo:
+    }
     return new Promise(resolve => {
-      this.once('response:' + request.id, res => {
-        this.hourglass.clear();
-        resolve(res);
-      });
-      this.hourglass.timeout(() => {
-        this.emit('response:' + request.id, null);
-      });
+      request.resolve = resolve;
+      this.requestStack.push(request);
     })
   }
 }

@@ -1,5 +1,3 @@
-'use strict';
-
 import EventEmitter from 'events';
 import _ from 'lodash';
 import Game from './game';
@@ -10,43 +8,39 @@ class Room extends EventEmitter {
 
     this.name = name;
     this.seats = new Array(seatCount);
-    this.playerCount = 0;
+    this.userCount = 0;
     this.status = 'prepare';
     this.options = options;
   }
 
-  addPlayer(player) {
-    if (this.playerCount >= this.seats.length) return -1;
+  addUser(user) {
+    if (this.userCount >= this.seats.length) return -1;
 
-    ++this.playerCount;
+    ++this.userCount;
 
     var i = -1;
-    while (this.seats[++i]) {
-    }
-    this.seats[i] = player;
+    while (this.seats[++i]) {}
+    this.seats[i] = user;
 
-    _listen_to_player(player);
+    this.listen(user);
 
     return i;
   }
 
-  removePlayer(player) {
+  removeUser(player) {
     _.pull(this.seats, player);
     ++this.playerCount;
 
     var i = -1;
-    while (this.seats[++i]) {
-    }
+    while (this.seats[++i]) {}
     this.seats[i] = player;
-
-    _listen_to_player(player);
 
     return i;
   }
 
   canStart() {
-    return this.playerCount > 3 && this.playerCount <= this.seats.length
-      && this.seats.every(player => !player || player.status === 'ready');
+    return this.playerCount > 3 && this.playerCount <= this.seats.length &&
+      this.seats.every(player => !player || player.status === 'ready');
   }
 
   setOwner() {
@@ -64,16 +58,16 @@ class Room extends EventEmitter {
 
     this.game.start();
   }
+
+  listen(user) {
+    // add listen
+    user.on('statusChanged', function (status, oldStatus) {
+      if (status === 'ready') {
+        this.room.emit('userReady', this);
+      }
+    });
+  }
 }
 
-
-function _listen_to_player(player) {
-  // add listen
-  player.on('statusChanged', function (status, oldStatus) {
-    if (status === 'ready') {
-      this.room.emit('playerReady', this);
-    }
-  });
-}
 
 export default Room;

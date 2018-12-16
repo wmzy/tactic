@@ -31,6 +31,6 @@ export function cutArray(array, count) {
 export function requireGlob(pattern, cwd) {
   glob.sync(pattern, {cwd})
   .map(filename => {
-    return require(path.resolve(filename))
-  })
+    return require(path.resolve(filename));
+  });
 }

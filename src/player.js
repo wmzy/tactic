@@ -15,10 +15,24 @@ class Player extends EventEmitter {
     this.cards = [];
     this.judgeStack = [];
     this.abilities = {};
+
+    this.data = {};
+    this.turnData = {};
+
+    this.hourglass = null;
+    this.user.on('response', this.response.bind(this));
   }
 
   useAbility(name, params) {
     return this.abilities[name].use(params);
+  }
+
+  request(payload) {
+    this.user.handleRequest(payload);
+  }
+
+  response(payload) {
+    // todo:
   }
 
   listenGameEvents() {
@@ -48,7 +62,7 @@ class Player extends EventEmitter {
     this.game.on('game.phase.draw.begin', this.drawCards);
   }
 
-  drawCards = () => {
+  drawCards() {
     const cards = this.game.drawCards(2);
     this.cards = this.cards.concat(cards);
   };
