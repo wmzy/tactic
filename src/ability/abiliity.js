@@ -4,8 +4,6 @@ class Ability {
     this.game = game;
   }
 
-  type = '';
-
   check(params) {
     return true;
   }

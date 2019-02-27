@@ -3,9 +3,10 @@ import _ from 'lodash';
 import Game from './game';
 
 class Room extends EventEmitter {
-  constructor(name, seatCount, options) {
+  constructor({id, name, seatCount, ...options}) {
     super();
 
+    this.id = id;
     this.name = name;
     this.seats = new Array(seatCount);
     this.userCount = 0;
