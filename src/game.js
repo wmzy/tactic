@@ -18,9 +18,10 @@ class Game extends EventEmitter {
     this.options = options;
     this.roles = ['monarch', 'loyal', 'loyal', 'rebel', 'rebel', 'rebel', 'rebel', 'traitor'];
     this.warriors = [];
-    this.cards = []
-    this.wasteCards = []
+    this.cards = [];
+    this.wasteCards = [];
     this.state = 'init';
+    this.currentPlayerIndex = 0;
     this.phase = 'init';
     this.requestStack = [];
 
@@ -28,6 +29,8 @@ class Game extends EventEmitter {
     this.preRoundHooks = [];
     this.postRoundHooks = [];
 
+    this.prePreparePhaseHooks = [];
+    this.postPreparePhaseHooks = [];
     this.preJudgePhaseHooks = [];
     this.postJudgePhaseHooks = [];
     this.preDrawPhaseHooks = [];
@@ -99,57 +102,109 @@ class Game extends EventEmitter {
     // 手气卡逻辑
   }
 
-  async turnToPhase(phase, player) {
-    this.phase = phase;
-    this.emit(`game.phase.${phase}.begin`, player);
-    await waitEvent(this, `game.phase.${phase}.end`);
-  }
-
   async applyHooks(hooks) {
     await Promise.mapSeries(hooks, h => h(this));
   }
 
-  async turnToRound(player) {
-    if (player.isDied) return;
+  get currentPlayer() {
+    return this.players[this.currentPlayerIndex];
+  }
+
+  get indexOfNextPlayer() {
+    // todo
+  }
+
+  async turnToRound() {
+    const player = this.currentPlayer;
     // todo: 反面操作
     if (player.isReversed) {
       player.isReversed = false;
+      this.currentPlayerIndex = this.indexOfNextPlayer;
+      await this.turnToRound();
       return;
     }
 
-    this.roundPlayer = player;
     // 回合开始阶段
-    this.emit('game.roundBegin', player);
+    this.emit('round.start');
     await this.applyHooks(this.preRoundHooks);
 
-    // 开始阶段-begin phase;
-    await this.turnToPhase('begin', player);
+    // 准备阶段-prepare phase;
+    this.emit('round.prepare');
+    await this.applyHooks(this.prePreparePhaseHooks);
+    await this.applyHooks(this.postPreparePhaseHooks);
+
     // 判定阶段-judge phase;
-    await this.turnToPhase('judge', player);
+    this.emit('round.judge');
+    await this.applyHooks(this.preJudgePhaseHooks);
+    await this.judgePhase();
+    await this.applyHooks(this.postJudgePhaseHooks);
+
     // 摸牌阶段-draw phase;
-    await this.turnToPhase('draw', player);
+    this.emit('round.draw');
+    await this.applyHooks(this.preDrawPhaseHooks);
+    await this.drawPhase();
+    await this.applyHooks(this.postDrawPhaseHooks);
+
     // 出牌阶段-play phase;
-    await this.turnToPhase('play', player);
+    this.emit('round.play');
+    await this.applyHooks(this.prePlayPhaseHooks);
+    await this.playPhase();
+    await this.applyHooks(this.postPlayPhaseHooks);
+
     // 弃牌阶段-discard phase;
-    await this.turnToPhase('discard', player);
+    this.emit('round.discard');
+    await this.applyHooks(this.preDiscardPhaseHooks);
+    await this.discardPhase();
+    await this.applyHooks(this.postDiscardPhaseHooks);
+
     // 结束阶段-end phase;
-    await this.turnToPhase('end', player);
+    this.emit('round.end');
+    await this.applyHooks(this.endPhaseHooks);
 
     this.emit('game.roundEnd', player);
     await this.applyHooks(this.postRoundHooks);
   }
 
-  get isGameOver() {
-    return this.state === 'over';
+  async playPhase() {
+    const action = await this.waitPlayerAction();
+    if (!action) return;
+    await this.applyAction(action);
+    await this.playPhase();
   }
 
-  async gameLoop() {
-    this.emit('gameStarted');
-    let index = 0;
-    while(!this.isGameOver) {
-      await this.turnToRound(this.players[i]);
-      index = (index + 1) % this.players.length;
-    }
+  waitPlayerAction() {
+    this.waitId = _.uuid('wait_');
+    this.emit('waitPlayerAction', this.waitId);
+    return new Promise(res => {
+      this.on('action', res);
+      setTimeout(res, this.options.waitSeconds);
+    });
+  }
+
+  action(action) {
+    // 空的 action 视为放弃
+    if (!action || this.validateAction(action)) this.emit('action', action);
+  }
+
+  validateAction(action) {
+    if (action.waitId !== this.waitId) return false;
+
+    const player = this.players[action.playerIndex];
+    if (!player || player.isDied) return false;
+
+    const playerAction = player.actions[action.name];
+    if (!playerAction) return false;
+    if (!playerAction.validate) return true;
+    return playerAction.validate(action);
+  }
+
+  async applyAction(action) {
+    const player = this.players[action.playerIndex];
+    await player.actions[action.name].run(action);
+  }
+
+  get isOver() {
+    return this.state === 'over';
   }
 
   async start() {
@@ -159,38 +214,13 @@ class Game extends EventEmitter {
 
     await this.assignInitGameCards();
 
-    await this.gameLoop();
+    this.emit('game.start');
+    await this.turnToRound();
   }
 
-  async judge(j) {
-    this.applyHooks(this.preJudgeHooks);
-    await j.apply();
-    this.applyHooks(this.postJudgeHooks);
-  }
-
-  topRequest() {
-    return _.last(this.requestStack);
-  }
-
-  async response(payload) {
-    // todo: hooks
-    const request = this.requestStack.pop();
-    request.resolve(payload);
-  }
-
-  // 等待玩家响应
-  async request(request) {
-    // todo: notify request.toPlayers
-    // todo: hooks
-    if (isSeriesRequest(request)) {
-      // todo:
-    } else if (isRaceRequest(request)) {
-      // todo:
-    }
-    return new Promise(resolve => {
-      request.resolve = resolve;
-      this.requestStack.push(request);
-    })
+  over() {
+    this.state = 'over';
+    return new Promise(() => {});
   }
 }
 
