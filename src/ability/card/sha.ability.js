@@ -15,12 +15,7 @@ class ShaAbility extends Ability {
     // todo: 将卡牌置入弃牌堆
 
     // 请求闪
-    const res = await this.game.request({
-      type: 'card',
-      cardName: '闪',
-      from: this.player,
-      to: params.player
-    });
+    const res = await this.game.waitPlayerAction();
 
     // todo: hooks-无双/青龙刀
     this.runPostHooks();

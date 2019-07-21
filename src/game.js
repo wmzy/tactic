@@ -6,10 +6,7 @@ import Player from './player';
 import Warrior from './warrior';
 import Request from './request';
 import {generateAbility} from './ability/abiliity';
-import {
-  cutArray,
-  waitEvent
-} from './util';
+import {cutArray} from './util';
 
 class Game extends EventEmitter {
   constructor(users, options) {
@@ -23,7 +20,7 @@ class Game extends EventEmitter {
     this.state = 'init';
     this.currentPlayerIndex = 0;
     this.phase = 'init';
-    this.requestStack = [];
+    this.currentActions = [];
 
     // hooks
     this.preRoundHooks = [];
@@ -173,8 +170,7 @@ class Game extends EventEmitter {
   }
 
   waitPlayerAction() {
-    this.waitId = _.uuid('wait_');
-    this.emit('waitPlayerAction', this.waitId);
+    this.emit('waitPlayerAction');
     return new Promise(res => {
       this.on('action', res);
       setTimeout(res, this.options.waitSeconds);
@@ -183,24 +179,32 @@ class Game extends EventEmitter {
 
   action(action) {
     // 空的 action 视为放弃
-    if (!action || this.validateAction(action)) this.emit('action', action);
+    if (this.validateAction(action)) this.emit('action', action);
   }
 
   validateAction(action) {
-    if (action.waitId !== this.waitId) return false;
+    // 空的 action 视为放弃
+    if (!action) return true;
 
     const player = this.players[action.playerIndex];
     if (!player || player.isDied) return false;
 
     const playerAction = player.actions[action.name];
     if (!playerAction) return false;
-    if (!playerAction.validate) return true;
-    return playerAction.validate(action);
+
+    if (!playerAction.check) return true;
+    return playerAction.check(action);
   }
 
   async applyAction(action) {
     const player = this.players[action.playerIndex];
-    await player.actions[action.name].run(action);
+    this.currentActions.push(action);
+    await player.actions[action.name].use(action);
+    this.currentActions.pop();
+  }
+
+  get currentAction () {
+    return _.last(this.currentActions);
   }
 
   get isOver() {
