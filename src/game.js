@@ -199,8 +199,9 @@ class Game extends EventEmitter {
   async applyAction(action) {
     const player = this.players[action.playerIndex];
     this.currentActions.push(action);
-    await player.actions[action.name].use(action);
+    const result = await player.actions[action.name].use(action);
     this.currentActions.pop();
+    return result;
   }
 
   get currentAction () {

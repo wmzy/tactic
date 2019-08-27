@@ -12,20 +12,21 @@ class ShaAbility extends Ability {
   }
 
   async use(params) {
-    // todo: 将卡牌置入弃牌堆
-
+    // 选择目标
+    
     // 请求闪
-    const res = await this.game.waitPlayerAction();
+    const action = await this.game.waitPlayerAction();
+    this.result = action ? await this.game.applyAction(action) : false;
 
     // todo: hooks-无双/青龙刀
-    this.runPostHooks();
+    await this.runPostHooks();
 
     // todo: 结算
 
     // 闪抵消
     //? 仁王盾/藤甲使杀【无效】
 
-    if (!res) {
+    if (this.result) {
       // 造成伤害
       this.game.hurt({
         from: this.player,
@@ -35,6 +36,7 @@ class ShaAbility extends Ability {
       });
     }
 
+    // todo: 将卡牌置入弃牌堆
   }
 }
 
