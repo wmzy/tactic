@@ -15,12 +15,18 @@ class Player extends EventEmitter {
     this.cards = [];
     this.judgeStack = [];
     this.abilities = {};
+    this.actions = {};
 
     this.data = {};
     this.turnData = {};
 
     this.hourglass = null;
     this.user.on('response', this.response.bind(this));
+  }
+
+  initAbility() {
+    // 基本技能
+    // 武将技能
   }
 
   useAbility(name, params) {
@@ -65,7 +71,7 @@ class Player extends EventEmitter {
   drawCards() {
     const cards = this.game.drawCards(2);
     this.cards = this.cards.concat(cards);
-  };
+  }
 
   choiceWarrior(i = 0) {
     if (this.warrior) return;

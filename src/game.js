@@ -60,29 +60,28 @@ class Game extends EventEmitter {
    * @returns {Promise.<void>}
    */
   async choiceWarrior() {
-    this.restWarriors = _.shuffle(Warrior.getNormalWarriors());
+    this.candidateWarriors = _.shuffle(Warrior.getNormalWarriors());
     // 主公开始选将
     // 主公可选武将包含两个普通武将
-    const normalWarriorsForMonarch = cutArray(this.restWarriors, 2);
-    this.candidateWarriorsForMonarch = Warrior.getMonarchWarriors().concat(normalWarriorsForMonarch);
-    const index = await this.request(
-      new Request('game.monarchChoiceWarrior')
-        .to(this.players[0], {warriors: this.candidateWarriorsForMonarch})
-    );
-    this.players[0].warrior = this.candidateWarriorsForMonarch[index];
-    _.pullAt(this.candidateWarriorsForMonarch, index);
-    this.restWarriors = _.shuffle(this.restWarriors.concat(this.candidateWarriorsForMonarch));
+    const normalWarriorsForMonarch = cutArray(this.candidateWarriors, 2);
 
-    const req = new Request('game.choiceWarrior');
+    this.players[0].candidateWarriors = Warrior.getMonarchWarriors().concat(normalWarriorsForMonarch);
+    this.phase = 'monarchChoiceWarrior';
+    const action = await this.waitPlayerAction();
+    await this.applyAction(action || {name: 'choiceWarrior', playerIndex: 0, index: 0});
+
+    this.phase = 'choiceWarrior';
+
     this.players.slice(1).forEach(player =>
-      req.to(player, {warriors: cutArray(this.restWarriors, player.role === 'traitor' ? 6 : 3)})
+      player.candidateWarriors = cutArray(this.candidateWarriors, player.role === 'traitor' ? 6 : 3)
     );
-    const indexes = await this.waitAllResponse(req);
-    _.forEach(req.toPlayers, (to, i) => {
-      to.player[0].warrior = to.payload.warriors[indexes[i]];
-      _.pullAt(to.payload.warriors, indexes[i]);
-      this.restWarriors = this.restWarriors.concat(to.payload.warriors);
-    });
+    await Promise.all(this.players.slice(1).map(async () => {
+      const action = await this.waitPlayerAction();
+      if (action) await this.applyAction(action);
+    }));
+    await Promise.all(this.players.map(async (player, index) => {
+      if (!player.warrior) await this.applyAction({name: 'choiceWarrior', playerIndex: index, index: 0});
+    }));
   }
 
   resetGameCards() {
@@ -172,7 +171,8 @@ class Game extends EventEmitter {
   waitPlayerAction() {
     this.emit('waitPlayerAction');
     return new Promise(res => {
-      this.on('action', res);
+      // todo: clear another
+      this.once('action', res);
       setTimeout(res, this.options.waitSeconds);
     });
   }
