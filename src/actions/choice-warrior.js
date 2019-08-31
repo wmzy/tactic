@@ -1,7 +1,7 @@
 import _ from 'lodash';
-import Ability from '../ability';
+import Action from '../action';
 
-class ChoiceWarriorAbility extends Ability {
+class ChoiceWarriorAction extends Action {
   check(action) {
     return (
       this.player.role === 'monarch' && this.game.phase === 'monarchChoiceWarrior'
@@ -15,7 +15,9 @@ class ChoiceWarriorAbility extends Ability {
     _.pullAt(candidateWarriors, action.index);
     this.game.candidateWarriors = _.shuffle(this.game.candidateWarriors.concat(candidateWarriors));
     this.player.candidateWarriors = [];
+
+    this.destroy();
   }
 }
 
-export default ChoiceWarriorAbility;
+export default ChoiceWarriorAction;

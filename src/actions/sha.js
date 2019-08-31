@@ -1,6 +1,6 @@
-import Ability from '../ability';
+import Action from '../action';
 
-class ShaAbility extends Ability {
+class ShaAction extends Action {
   static name = '杀';
 
   check(params) {
@@ -13,7 +13,7 @@ class ShaAbility extends Ability {
 
   async use(params) {
     // 选择目标
-    
+
     // 请求闪
     const action = await this.game.waitPlayerAction();
     this.result = action ? await this.game.applyAction(action) : false;
@@ -40,4 +40,4 @@ class ShaAbility extends Ability {
   }
 }
 
-export default ShaAbility;
+export default ShaAction;

@@ -3,7 +3,7 @@
 import EventEmitter from 'events';
 import Promise from 'bluebird';
 import _ from 'lodash';
-
+import ChoiceWarriorAction from './actions/choice-warrior';
 import {cutArray, wait} from './util';
 
 class Player extends EventEmitter {
@@ -19,9 +19,6 @@ class Player extends EventEmitter {
 
     this.data = {};
     this.turnData = {};
-
-    this.hourglass = null;
-    this.user.on('response', this.response.bind(this));
   }
 
   initAbility() {

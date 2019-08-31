@@ -5,7 +5,7 @@ import _ from 'lodash';
 import Player from './player';
 import Warrior from './warrior';
 import Request from './request';
-import {generateAbility} from './ability/abiliity';
+import {generateAbility} from './abiliity';
 import {cutArray} from './util';
 
 class Game extends EventEmitter {

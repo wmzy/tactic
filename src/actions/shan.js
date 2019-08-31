@@ -1,6 +1,6 @@
-import Ability from '../ability';
+import Action from '../action';
 
-class ShanAbility extends Ability {
+class ShanAction extends Action {
   static name = '杀';
 
   check(action) {
@@ -22,4 +22,4 @@ class ShanAbility extends Ability {
   }
 }
 
-export default ShanAbility;
+export default ShanAction;

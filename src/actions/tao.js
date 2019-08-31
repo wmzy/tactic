@@ -1,6 +1,6 @@
-import Ability from '../ability';
+import Action from '../action';
 
-class TaoAbility extends Ability {
+class TaoAction extends Action {
   static name = '桃';
 
   check(params) {
@@ -23,4 +23,4 @@ class TaoAbility extends Ability {
   }
 }
 
-export default ShaAbility;
+export default ShaAction;
